@@ -1,0 +1,6 @@
+{
+    "name": "copy",
+    "description": "This is a dummy plugin. It's used as an example for creating other plugins. It simply copies files",
+    "version": "v1.0.0",
+    "license": "AGPL-3.0-only"
+}
