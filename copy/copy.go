@@ -64,31 +64,33 @@ func cp(src, dst string) error {
 				return err
 			}
 		}
-	}
 
-	if err := fs.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
-		fmt.Printf("create directory tree: %v\n", err)
-		os.Exit(1)
-	}
+	} else {
+		if err := fs.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+			fmt.Printf("create directory tree: %v\n", err)
+			os.Exit(1)
+		}
 
-	srcF, err := fs.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcF.Close()
+		srcF, err := fs.Open(src)
+		if err != nil {
+			return err
+		}
+		defer srcF.Close()
 
-	dstF, err := fs.Create(dstPath)
-	if err != nil {
-		return fmt.Errorf("create '%s': %v", dstPath, err)
-	}
-	defer dstF.Close()
+		dstF, err := fs.Create(dstPath)
+		if err != nil {
+			return fmt.Errorf("create '%s': %v", dstPath, err)
+		}
+		defer dstF.Close()
 
-	if _, err := io.Copy(dstF, srcF); err != nil {
-		return fmt.Errorf("copy '%s': %v", dstPath, err)
-	}
+		if _, err := io.Copy(dstF, srcF); err != nil {
+			return fmt.Errorf("copy '%s': %v", dstPath, err)
+		}
 
-	if err := dstF.Sync(); err != nil {
-		return fmt.Errorf("syncing '%s': %v", dstPath, err)
+		if err := dstF.Sync(); err != nil {
+			return fmt.Errorf("syncing '%s': %v", dstPath, err)
+		}
+
 	}
 
 	return nil
