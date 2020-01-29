@@ -6,14 +6,16 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
+	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/brainupdaters/drlm-agent/cfg"
+	"github.com/brainupdaters/drlm-common/pkg/fs"
+	"github.com/brainupdaters/drlm-common/pkg/minio"
+	sdk "github.com/minio/minio-go/v6"
 	"github.com/spf13/afero"
 )
-
-var fs = afero.NewOsFs()
 
 // Config is the configuration that is going to be passed in ALWAYS through the -config flag as a string
 // This configuration is going to be stored in the Core and it will be available for editing, so it can be
@@ -22,21 +24,40 @@ type Config struct {
 	Files []string `json:"files,omitempty"`
 }
 
+var cli *sdk.Client
+var target string
+
 func main() {
 	var strCfg string
 	flag.StringVar(&strCfg, "config", "", "")
 	// target is the directory where the backup / output HAS to be stored. It's always passed
-	var target string
 	flag.StringVar(&target, "target", "", "")
 	flag.Parse()
 
-	var cfg Config
-	if err := json.Unmarshal([]byte(strCfg), &cfg); err != nil {
-		fmt.Printf("parse configuration: %v\n", err)
+	var jobCfg Config
+	var err error
+	if err = json.Unmarshal([]byte(strCfg), &jobCfg); err != nil {
+		log.Printf("parse configuration: %v\n", err)
 		os.Exit(1)
 	}
 
-	for _, f := range cfg.Files {
+	fs.Init()
+	cfg.Init("")
+
+	cli, err = minio.NewSDK(
+		cfg.Config.Minio.Host,
+		cfg.Config.Minio.Port,
+		cfg.Config.Minio.AccessKey,
+		cfg.Config.Minio.SecretKey,
+		cfg.Config.Minio.SSL,
+		cfg.Config.Minio.CertPath,
+	)
+	if err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+
+	for _, f := range jobCfg.Files {
 		// Copy the file
 		if err := cp(f, target); err != nil {
 			fmt.Printf("copy the file: %v", err)
@@ -46,15 +67,13 @@ func main() {
 }
 
 func cp(src, dst string) error {
-	stat, err := fs.Stat(src)
+	stat, err := fs.FS.Stat(src)
 	if err != nil {
 		return err
 	}
 
-	dstPath := filepath.Join(dst, src)
-
 	if stat.IsDir() {
-		subFiles, err := afero.ReadDir(fs, src)
+		subFiles, err := afero.ReadDir(fs.FS, src)
 		if err != nil {
 			return fmt.Errorf("list '%s' content: %v", src, err)
 		}
@@ -66,31 +85,13 @@ func cp(src, dst string) error {
 		}
 
 	} else {
-		if err := fs.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
-			fmt.Printf("create directory tree: %v\n", err)
-			os.Exit(1)
+		name := src
+		if filepath.IsAbs(src) {
+			name = src[1:]
 		}
-
-		srcF, err := fs.Open(src)
-		if err != nil {
-			return err
+		if _, err := cli.FPutObject(target, name, src, sdk.PutObjectOptions{}); err != nil {
+			return fmt.Errorf("copy file '%s': %v", src, err)
 		}
-		defer srcF.Close()
-
-		dstF, err := fs.Create(dstPath)
-		if err != nil {
-			return fmt.Errorf("create '%s': %v", dstPath, err)
-		}
-		defer dstF.Close()
-
-		if _, err := io.Copy(dstF, srcF); err != nil {
-			return fmt.Errorf("copy '%s': %v", dstPath, err)
-		}
-
-		if err := dstF.Sync(); err != nil {
-			return fmt.Errorf("syncing '%s': %v", dstPath, err)
-		}
-
 	}
 
 	return nil
