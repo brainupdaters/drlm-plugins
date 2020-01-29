@@ -1,0 +1,8 @@
+{
+    "name": "tar",
+    "description": "This is a dummy plugin. It's used as an example for creating other plugins using stdin. It creates a tar with different compression options",
+    "version": "v1.0.0",
+    "license": "AGPL-3.0-only",
+    "arch": [],
+    "os": []
+}
