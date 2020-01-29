@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 
 	"github.com/brainupdaters/drlm-agent/cfg"
@@ -37,8 +36,7 @@ func main() {
 	var jobCfg Config
 	var err error
 	if err = json.Unmarshal([]byte(strCfg), &jobCfg); err != nil {
-		log.Printf("parse configuration: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("parse configuration: %v", err)
 	}
 
 	fs.Init()
@@ -53,15 +51,13 @@ func main() {
 		cfg.Config.Minio.CertPath,
 	)
 	if err != nil {
-		log.Println(err)
-		os.Exit(1)
+		log.Fatalln(err)
 	}
 
 	for _, f := range jobCfg.Files {
 		// Copy the file
 		if err := cp(f, target); err != nil {
-			fmt.Printf("copy the file: %v", err)
-			os.Exit(1)
+			log.Fatalln(err)
 		}
 	}
 }
@@ -89,6 +85,7 @@ func cp(src, dst string) error {
 		if filepath.IsAbs(src) {
 			name = src[1:]
 		}
+
 		if _, err := cli.FPutObject(target, name, src, sdk.PutObjectOptions{}); err != nil {
 			return fmt.Errorf("copy file '%s': %v", src, err)
 		}
