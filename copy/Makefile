@@ -1,4 +1,4 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 build:
-	go build copy.go
+	CGO_ENABLED=0 go build copy.go
